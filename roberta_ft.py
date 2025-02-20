@@ -7,59 +7,78 @@ from peft import get_peft_model, LoraConfig, TaskType
 
 tokenizer = RobertaTokenizerFast.from_pretrained("roberta-base")
 
-train_sentences = []
-train_event_triggers = []
+train_sentences1 = []
+train_sentences2 = []
+train_event_triggers1 = []
+train_event_triggers2 = []
 train_labels = []
 
-dev_sentences = []
-dev_event_triggers = []
+dev_sentences1 = []
+dev_sentences2 = []
+dev_event_triggers1 = []
+dev_event_triggers2 = []
 dev_labels = []
 
-labels = torch.tensor([0, 1]) 
 
-with open("/content/data2/event_pairs.train", "r", encoding="utf-8") as file:
+with open("data 2/event_pairs.train", "r", encoding="utf-8") as file:
     for line in file:
         tokens = line.split('\t')
-        train_sentences.append(tokens[0])
-        train_sentences.append(tokens[11])
-        train_event_triggers.append(int(tokens[1]))
-        train_event_triggers.append(int(tokens[2]))
-        train_labels.append(int(tokens[10])) #deal with the other info later
+        train_sentences1.append(tokens[0])
+        train_sentences2.append(tokens[11])
+        train_event_triggers1.append(int(tokens[1]))
+        train_event_triggers2.append(int(tokens[12]))
+        train_labels.append(int(tokens[22])) #deal with the other info later
 
-tr_tokenized = tokenizer(train_sentences, return_offsets_mapping=True, padding=True, truncation=True, return_tensors="pt")
+# print(train_sentences)
+tr_tokenized = tokenizer(train_sentences1, train_sentences2, padding=True, truncation=True, return_tensors="pt")
 
-with open("/content/data2/event_pairs.dev", "r", encoding="utf-8") as file:
+with open("data 2/event_pairs.dev", "r", encoding="utf-8") as file:
     for line in file:
         tokens = line.split('\t')
-        dev_sentences.append(tokens[0])
-        dev_sentences.append(tokens[11])
-        dev_event_triggers.append(tokens[1])
-        dev_event_triggers.append(tokens[2])
-        dev_labels.append(tokens[10]) #deal with the other info later
+        dev_sentences1.append(tokens[0])
+        dev_sentences2.append(tokens[11])
+        dev_event_triggers1.append(int(tokens[1]))
+        dev_event_triggers2.append(int(tokens[12]))
+        dev_labels.append(int(tokens[22])) #deal with the other info later
 
-dev_tokenized = tokenizer(dev_sentences, return_offsets_mapping=True, padding=True, truncation=True, return_tensors="pt")
+dev_tokenized = tokenizer(dev_sentences1, dev_sentences2, padding=True, truncation=True, return_tensors="pt")
 
-#huggingface dataset
+print(train_labels)
+
+# Convert to Hugging Face Dataset
 train_dataset = Dataset.from_dict({
     "input_ids": tr_tokenized["input_ids"],
     "attention_mask": tr_tokenized["attention_mask"],
-    "trigger_indices": torch.tensor(train_event_triggers),
-    "labels": labels
+    "trigger_indices_1": torch.tensor(train_event_triggers1),
+    "trigger_indices_2": torch.tensor(train_event_triggers2),
+    "labels": torch.tensor(train_labels)
 })
 
 dev_dataset = Dataset.from_dict({
     "input_ids": dev_tokenized["input_ids"],
     "attention_mask": dev_tokenized["attention_mask"],
-    "trigger_indices": torch.tensor(dev_event_triggers),
-    "labels": labels
+    "trigger_indices_1": torch.tensor(dev_event_triggers1),
+    "trigger_indices_2": torch.tensor(dev_event_triggers2),
+    "labels": torch.tensor(dev_labels)
 })
 
-# number of labels
+# Define number of labels (e.g., 2 for binary classification)
 model = RobertaForSequenceClassification.from_pretrained("roberta-base", num_labels=2)
 
+lora_config = LoraConfig(
+    task_type=TaskType.SEQ_CLS,  # Change to TaskType.TOKEN_CLS for token classification
+    r=8, 
+    lora_alpha=16, 
+    lora_dropout=0.1, 
+    target_modules=["query", "value"]
+)
+
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+
 training_args = TrainingArguments(
-    output_dir="./roberta_finetuned",
-    evaluation_strategy="epoch",
+    output_dir="./roberta_finetuned",  # Where to save model
+    evaluation_strategy="epoch",  # Evaluate at the end of each epoch
     save_strategy="epoch",
     per_device_train_batch_size=8,
     per_device_eval_batch_size=8,
@@ -73,23 +92,13 @@ training_args = TrainingArguments(
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=train_dataset,
-    dev_dataset=dev_dataset
+    train_dataset=train_dataset,  # Your training data
+    eval_dataset=dev_dataset
 )
 
 trainer.train()
 
-lora_config = LoraConfig(
-    task_type=TaskType.SEQ_CLS,
-    r=8,
-    lora_alpha=16,
-    lora_dropout=0.1,
-    target_modules=["query", "value"]
-)
-
-model = get_peft_model(model, lora_config)
-model.print_trainable_parameters()
-
 model.save_pretrained("./roberta_finetuned_lora")
 
 trainer.evaluate()
+
