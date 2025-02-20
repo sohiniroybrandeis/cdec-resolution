@@ -1,0 +1,1 @@
+# cdec_resolution
