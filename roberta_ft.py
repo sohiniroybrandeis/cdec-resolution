@@ -15,8 +15,7 @@ dev_sentences = []
 dev_event_triggers = []
 dev_labels = []
 
-# Example labels (modify for your task)
-labels = torch.tensor([0, 1])  # Adjust label format for your use case
+labels = torch.tensor([0, 1]) 
 
 with open("/content/data2/event_pairs.train", "r", encoding="utf-8") as file:
     for line in file:
@@ -40,7 +39,7 @@ with open("/content/data2/event_pairs.dev", "r", encoding="utf-8") as file:
 
 dev_tokenized = tokenizer(dev_sentences, return_offsets_mapping=True, padding=True, truncation=True, return_tensors="pt")
 
-# Convert to Hugging Face Dataset
+#huggingface dataset
 train_dataset = Dataset.from_dict({
     "input_ids": tr_tokenized["input_ids"],
     "attention_mask": tr_tokenized["attention_mask"],
@@ -55,12 +54,12 @@ dev_dataset = Dataset.from_dict({
     "labels": labels
 })
 
-# Define number of labels (e.g., 2 for binary classification)
+# number of labels
 model = RobertaForSequenceClassification.from_pretrained("roberta-base", num_labels=2)
 
 training_args = TrainingArguments(
-    output_dir="./roberta_finetuned",  # Where to save model
-    evaluation_strategy="epoch",  # Evaluate at the end of each epoch
+    output_dir="./roberta_finetuned",
+    evaluation_strategy="epoch",
     save_strategy="epoch",
     per_device_train_batch_size=8,
     per_device_eval_batch_size=8,
@@ -74,14 +73,14 @@ training_args = TrainingArguments(
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=train_dataset,  # Your training data
+    train_dataset=train_dataset,
     dev_dataset=dev_dataset
 )
 
 trainer.train()
 
 lora_config = LoraConfig(
-    task_type=TaskType.SEQ_CLS,  # Change to TaskType.TOKEN_CLS for token classification
+    task_type=TaskType.SEQ_CLS,
     r=8,
     lora_alpha=16,
     lora_dropout=0.1,
