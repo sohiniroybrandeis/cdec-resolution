@@ -3,13 +3,14 @@ import numpy as np
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 # from torch.utils.data import Dataset
 from datasets import Dataset
-from transformers import RobertaTokenizerFast, RobertaForSequenceClassification, TrainingArguments, Trainer, LlamaForSequenceClassification, LlamaTokenizer
+from transformers import TrainingArguments, Trainer, LlamaForSequenceClassification, LlamaTokenizer, AutoTokenizer
 from peft import get_peft_model, LoraConfig, TaskType
 import gc
 
 gc.collect()
 
-tokenizer = LlamaTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
+# tokenizer = LlamaTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
 tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
 train_sentences1 = []
@@ -28,47 +29,34 @@ def align_token_indices(sentence, tokenizer, original_index):
     """
     Maps original word index to tokenized index.
     """
-    words = sentence.split()  # Get words
-    tokens = tokenizer.tokenize(sentence)  # Tokenize sentence
+    words = sentence.split()
+    tokens = tokenizer.tokenize(sentence)
     
-    # Convert word index to character index
+    #to char index
     char_count = 0
     word_to_char_idx = []
     for word in words:
         word_to_char_idx.append(char_count)
         char_count += len(word) + 1  # +1 for space
 
-    # Find the character span of the target word
+    # character span of the target word
     if original_index == -1:
-        return -1  # For missing indices
+        return -1 #missing
     start_char_idx = word_to_char_idx[original_index]
 
-    # Convert character index to token index
+    # to token index
     token_char_count = 0
     for i, token in enumerate(tokens):
-        if token.startswith("▁"):  # New word
-            token_char_count += len(token) - 1  # Remove "▁"
+        if token.startswith("▁"):
+            token_char_count += len(token) - 1
         else:
             token_char_count += len(token)
 
         if token_char_count >= start_char_idx:
-            return i  # Return tokenized index
+            return i 
 
-    return -1  # Fallback case
+    return -1
 
-# def align_token_indices(sentence, tokenizer, original_index):
-#     encoding = tokenizer(sentence, return_offsets_mapping=True)
-#     offsets = encoding["offset_mapping"]
-
-#     if original_index == -1:
-#         return -1
-
-#     char_index = len(" ".join(sentence.split()[:original_index]))  # Convert word index to char index
-#     for i, (start, end) in enumerate(offsets):
-#         if start <= char_index < end:
-#             return i  # Return token index
-
-#     return -1  # If not found
 
 with open("data 2/event_pairs.train", "r", encoding="utf-8") as file:
     for line in file:
