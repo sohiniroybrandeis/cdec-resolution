@@ -20,20 +20,20 @@ def align_token_indices(sentence, tokenizer, original_index):
     tokens = tokenizer.tokenize(sentence)
     
     char_count = 0
-    convert_idx = [char_count]
+    word_to_char_idx = [char_count]
     for word in words:
-        char_count += len(word) + 1
-        convert_idx.append(char_count)
+        char_count += len(word) + 1  # +1 for space
+        word_to_char_idx.append(char_count)
 
     if original_index == -1:
-        return -1  # index is missing
+        return -1  # Missing index
     
-    start_idx = convert_idx[original_index]
+    start_char_idx = word_to_char_idx[original_index]
 
     token_char_count = 0
     for i, token in enumerate(tokens):
         token_char_count += len(token) - 1 if token.startswith("▁") else len(token)
-        if token_char_count >= start_idx:
+        if token_char_count >= start_char_idx:
             return i 
 
     return -1
@@ -70,11 +70,10 @@ def load_data(file_path):
 train_dataset = load_data("data 2/event_pairs.train")
 dev_dataset = load_data("data 2/event_pairs.dev")
 
-
 model = AutoModelForCausalLM.from_pretrained(
     "meta-llama/Llama-2-7b-hf",
     num_labels=2,
-    device_map="auto"  # Automatically distribute across available GPUs
+    device_map="cpu"  # Automatically distribute across available GPUs
 )
 
 model.resize_token_embeddings(len(tokenizer))
@@ -113,7 +112,7 @@ training_args = TrainingArguments(
     logging_dir="./logs",
     logging_steps=10,
     dataloader_num_workers=0,
-    fp16=True,  # Enable mixed precision
+    fp16=False,  # Enable mixed precision
     save_total_limit=2  # Avoid excessive checkpoint saving
 )
 
