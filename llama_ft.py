@@ -10,8 +10,8 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 gc.collect()
 torch.cuda.empty_cache()
 
-tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
-# tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+# tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
 tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
 
