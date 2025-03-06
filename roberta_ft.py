@@ -88,7 +88,7 @@ training_args = TrainingArguments(
     fp16 = True
 )
 
-trainer = SFTTrainer(
+trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,  # Your training data
