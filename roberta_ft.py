@@ -74,6 +74,7 @@ def compute_metrics(eval_pred):
 
 #initial lr = 5e-5
 
+
 training_args = TrainingArguments(
     output_dir="./roberta_finetuned",  # Where to save model
     evaluation_strategy="epoch",  # Evaluate at the end of each epoch
@@ -92,11 +93,11 @@ trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,  # Your training data
-    eval_dataset=dev_dataset,
+    eval_dataset=test_dataset,
     compute_metrics=compute_metrics
 )
 
-trainer.train()
+# trainer.train()
 
 model.save_pretrained("./roberta_finetuned_lora")
 
