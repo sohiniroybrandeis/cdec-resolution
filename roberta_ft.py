@@ -39,9 +39,9 @@ def load_data(file_path):
 
     return dataset
 
-train_dataset = load_data("data 2/event_pairs.train")
-dev_dataset = load_data("data 2/event_pairs.train")
-test_dataset = load_data("data 2/event_pairs.train")
+train_dataset = load_data("data2/event_pairs.train")
+dev_dataset = load_data("data2/event_pairs.train")
+test_dataset = load_data("data2/event_pairs.train")
 
 # Define number of labels (e.g., 2 for binary classification)
 model = RobertaForSequenceClassification.from_pretrained("roberta-base", num_labels=2)
