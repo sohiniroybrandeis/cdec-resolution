@@ -76,17 +76,23 @@ train_dataset = load_data("data2/event_pairs.train")
 dev_dataset = load_data("data2/event_pairs.dev")
 test_dataset = load_data("data2/event_pairs.train")
 
-quantization_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_compute_dtype="bfloat16"
-)
+# quantization_config = BitsAndBytesConfig(
+#     load_in_4bit=True,
+#     bnb_4bit_quant_type="nf4",
+#     bnb_4bit_compute_dtype="bfloat16"
+# )
+
+# model = AutoModelForCausalLM.from_pretrained(
+#     "meta-llama/Llama-3.2-1B",
+#     num_labels=2,
+#     device_map="auto",  # Automatically distribute across available GPUs
+#     quantization_config=quantization_config
+# )
 
 model = AutoModelForCausalLM.from_pretrained(
     "meta-llama/Llama-3.2-1B",
     num_labels=2,
-    device_map="auto",  # Automatically distribute across available GPUs
-    quantization_config=quantization_config
+    device_map="auto"  # Automatically distribute across available GPUs
 )
 
 model.resize_token_embeddings(len(tokenizer))
