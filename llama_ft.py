@@ -69,9 +69,9 @@ def load_data(file_path):
     return dataset
 
 #load data from train and dev
-train_dataset = load_data("data 2/event_pairs.train")
-dev_dataset = load_data("data 2/event_pairs.dev")
-test_dataset = load_data("data 2/event_pairs.train")
+train_dataset = load_data("data2/event_pairs.train")
+dev_dataset = load_data("data2/event_pairs.dev")
+test_dataset = load_data("data2/event_pairs.train")
 
 quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,
