@@ -80,7 +80,7 @@ quantization_config = BitsAndBytesConfig(
 )
 
 model = AutoModelForCausalLM.from_pretrained(
-    "meta-llama/Llama-2-7b-hf",
+    "meta-llama/Llama-3.2-1B",
     num_labels=2,
     device_map="auto",  # Automatically distribute across available GPUs
     quantization_config=quantization_config
