@@ -93,7 +93,7 @@ model.resize_token_embeddings(len(tokenizer))
 
 # Apply LoRA for parameter-efficient fine-tuning
 lora_config = LoraConfig(
-    task_type=TaskType.SEQ_CLS,
+    task_type=TaskType.CAUSAL_LM,
     r=4,
     lora_alpha=32,
     lora_dropout=0.05,
