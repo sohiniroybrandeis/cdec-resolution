@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import gc
 from datasets import Dataset
-from transformers import AutoTokenizer, TrainingArguments, AutoModelForCausalLM
+from transformers import AutoTokenizer, TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig
 from peft import get_peft_model, LoraConfig, TaskType
 from trl import SFTTrainer
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
@@ -58,7 +58,7 @@ def load_data(file_path):
     texts = [s1 + " " + s2 for s1, s2 in zip(sentences1, sentences2)] #concatenate sentences
     tokenized = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
     
-    return Dataset.from_dict({
+    dataset = Dataset.from_dict({
         "input_ids": tokenized["input_ids"],
         "attention_mask": tokenized["attention_mask"],
         "trigger_indices_1": torch.tensor(triggers1),
@@ -66,14 +66,24 @@ def load_data(file_path):
         "labels": torch.tensor(labels)
     })
 
+    return dataset
+
 #load data from train and dev
 train_dataset = load_data("data 2/event_pairs.train")
 dev_dataset = load_data("data 2/event_pairs.dev")
+test_dataset = load_data("data 2/event_pairs.train")
+
+quantization_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype="bfloat16"
+)
 
 model = AutoModelForCausalLM.from_pretrained(
     "meta-llama/Llama-2-7b-hf",
     num_labels=2,
-    device_map="cpu"  # Automatically distribute across available GPUs
+    device_map="cpu",  # Automatically distribute across available GPUs
+    quantization_config=quantization_config
 )
 
 model.resize_token_embeddings(len(tokenizer))
