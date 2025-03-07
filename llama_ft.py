@@ -82,7 +82,7 @@ quantization_config = BitsAndBytesConfig(
 model = AutoModelForCausalLM.from_pretrained(
     "meta-llama/Llama-2-7b-hf",
     num_labels=2,
-    device_map="cpu",  # Automatically distribute across available GPUs
+    device_map="auto",  # Automatically distribute across available GPUs
     quantization_config=quantization_config
 )
 
@@ -91,9 +91,9 @@ model.resize_token_embeddings(len(tokenizer))
 # Apply LoRA for parameter-efficient fine-tuning
 lora_config = LoraConfig(
     task_type=TaskType.SEQ_CLS,
-    r=8,
-    lora_alpha=16,
-    lora_dropout=0.1,
+    r=4,
+    lora_alpha=32,
+    lora_dropout=0.05,
     target_modules=["q_proj", "v_proj"]
 )
 
@@ -122,12 +122,11 @@ training_args = TrainingArguments(
     logging_dir="./logs",
     logging_steps=10,
     dataloader_num_workers=0,
-    fp16=False,  # Enable mixed precision
+    fp16=True,  # Enable mixed precision
     save_total_limit=2  # Avoid excessive checkpoint saving
 )
 
-# Fine-tuning with SFTTrainer
-trainer = SFTTrainer(
+trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,
