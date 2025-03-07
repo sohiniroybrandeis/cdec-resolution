@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import gc
 from datasets import Dataset
-from transformers import AutoTokenizer, TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer, TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, Trainer
 from peft import get_peft_model, LoraConfig, TaskType
 from trl import SFTTrainer
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
