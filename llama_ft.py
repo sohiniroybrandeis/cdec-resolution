@@ -10,6 +10,9 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 gc.collect()
 torch.cuda.empty_cache()
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print('Device: ', device)
+
 # tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
 tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
 tokenizer.add_special_tokens({'pad_token': '[PAD]'})
@@ -56,7 +59,7 @@ def load_data(file_path):
             labels.append(int(tokens[22]))
 
     texts = [s1 + " " + s2 for s1, s2 in zip(sentences1, sentences2)] #concatenate sentences
-    tokenized = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+    tokenized = tokenizer(texts, padding=True, truncation=True, return_tensors="pt").to(device)
     
     dataset = Dataset.from_dict({
         "input_ids": tokenized["input_ids"],
@@ -98,6 +101,7 @@ lora_config = LoraConfig(
 )
 
 model = get_peft_model(model, lora_config)
+model.to(device)
 model.print_trainable_parameters()
 
 
