@@ -4,7 +4,7 @@ import gc
 from datasets import Dataset
 from transformers import AutoTokenizer, TrainingArguments, AutoModelForCausalLM, BitsAndBytesConfig, Trainer
 from peft import get_peft_model, LoraConfig, TaskType
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 gc.collect()
@@ -18,28 +18,28 @@ tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
 tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
 
-def align_token_indices(sentence, tokenizer, original_index):
-    words = sentence.split()
-    tokens = tokenizer.tokenize(sentence)
+# def align_token_indices(sentence, tokenizer, original_index):
+#     words = sentence.split()
+#     tokens = tokenizer.tokenize(sentence)
     
-    char_count = 0
-    word_to_char_idx = [char_count]
-    for word in words:
-        char_count += len(word) + 1  # +1 for space
-        word_to_char_idx.append(char_count)
+#     char_count = 0
+#     word_to_char_idx = [char_count]
+#     for word in words:
+#         char_count += len(word) + 1  # +1 for space
+#         word_to_char_idx.append(char_count)
 
-    if original_index == -1:
-        return -1  # Missing index
+#     if original_index == -1:
+#         return -1  # Missing index
     
-    start_char_idx = word_to_char_idx[original_index]
+#     start_char_idx = word_to_char_idx[original_index]
 
-    token_char_count = 0
-    for i, token in enumerate(tokens):
-        token_char_count += len(token) - 1 if token.startswith("▁") else len(token)
-        if token_char_count >= start_char_idx:
-            return i 
+#     token_char_count = 0
+#     for i, token in enumerate(tokens):
+#         token_char_count += len(token) - 1 if token.startswith("▁") else len(token)
+#         if token_char_count >= start_char_idx:
+#             return i 
 
-    return -1
+#     return -1
 
 
 def load_data(file_path):
@@ -54,8 +54,10 @@ def load_data(file_path):
             tokens = line.split('\t')
             sentences1.append(tokens[0])
             sentences2.append(tokens[11])
-            triggers1.append(align_token_indices(tokens[0], tokenizer, int(tokens[1])))
-            triggers2.append(align_token_indices(tokens[11], tokenizer, int(tokens[12])))
+            triggers1.append(int(tokens[1]))
+            triggers2.append(int(tokens[12]))
+            # triggers1.append(align_token_indices(tokens[0], tokenizer, int(tokens[1])))
+            # triggers2.append(align_token_indices(tokens[11], tokenizer, int(tokens[12])))
             labels.append(int(tokens[22]))
 
     texts = [s1 + " " + s2 for s1, s2 in zip(sentences1, sentences2)] #concatenate sentences
@@ -76,31 +78,25 @@ train_dataset = load_data("data2/event_pairs.train")
 dev_dataset = load_data("data2/event_pairs.dev")
 test_dataset = load_data("data2/event_pairs.train")
 
-# quantization_config = BitsAndBytesConfig(
-#     load_in_4bit=True,
-#     bnb_4bit_quant_type="nf4",
-#     bnb_4bit_compute_dtype="bfloat16"
-# )
-
-# model = AutoModelForCausalLM.from_pretrained(
-#     "meta-llama/Llama-3.2-1B",
-#     num_labels=2,
-#     device_map="auto",  # Automatically distribute across available GPUs
-#     quantization_config=quantization_config
-# )
+quantization_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype="bfloat16"
+)
 
 model = AutoModelForCausalLM.from_pretrained(
     "meta-llama/Llama-3.2-1B",
     num_labels=2,
-    device_map="auto"  # Automatically distribute across available GPUs
+    device_map="auto",  # Automatically distribute across available GPUs
+    quantization_config=quantization_config
 )
 
 model.resize_token_embeddings(len(tokenizer))
 
 # Apply LoRA for parameter-efficient fine-tuning
 lora_config = LoraConfig(
-    task_type=TaskType.CAUSAL_LM,
-    r=4,
+    task_type=TaskType.SEQ_CLS,
+    r=2,
     lora_alpha=32,
     lora_dropout=0.05,
     target_modules=["q_proj", "v_proj"]
@@ -120,23 +116,38 @@ def compute_metrics(eval_pred):
     return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1}
 
 
-training_args = TrainingArguments(
-    output_dir="./llama_finetuned",
-    evaluation_strategy="epoch",
-    save_strategy="epoch",
-    per_device_train_batch_size=4,  # Reduce batch size for lower memory
-    per_device_eval_batch_size=4,
-    num_train_epochs=3,
-    learning_rate=5e-5,
-    weight_decay=0.01,
-    logging_dir="./logs",
-    logging_steps=10,
-    dataloader_num_workers=0,
-    fp16=True,  # Enable mixed precision
-    save_total_limit=2  # Avoid excessive checkpoint saving
+# training_args = TrainingArguments(
+#     output_dir="./llama_finetuned",
+#     evaluation_strategy="epoch",
+#     save_strategy="epoch",
+#     per_device_train_batch_size=4,  # Reduce batch size for lower memory
+#     per_device_eval_batch_size=4,
+#     num_train_epochs=3,
+#     learning_rate=5e-5,
+#     weight_decay=0.01,
+#     logging_dir="./logs",
+#     logging_steps=10,
+#     dataloader_num_workers=0,
+#     fp16=True,  # Enable mixed precision
+#     save_total_limit=2  # Avoid excessive checkpoint saving
+# )
+
+training_args = SFTConfig(
+    output_dir = "llama_finetuned_lora",
+    max_seq_length=256,
+    packing=True,
+    bf16=True,
+    learning_rate=1e-4,
+    gradient_checkpointing=True,
+    gradient_checkpointing_kwargs={"use_reentrant": False},
+    num_train_epochs=1,
+    per_device_train_batch_size=32,
+    per_gpu_eval_batch_size=32,
+    do_eval=True,
+    eval_strategy="epoch"
 )
 
-trainer = Trainer(
+trainer = SFTTrainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,
