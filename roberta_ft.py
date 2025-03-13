@@ -1,13 +1,11 @@
 import torch
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-# from torch.utils.data import Dataset
 from datasets import Dataset
 from transformers import RobertaTokenizerFast, RobertaForSequenceClassification, TrainingArguments, Trainer
 from peft import get_peft_model, LoraConfig, TaskType
-from trl import SFTTrainer
 
-tokenizer = RobertaTokenizerFast.from_pretrained("roberta-base")
+tokenizer = RobertaTokenizerFast.from_pretrained("roberta-base") # using pre-trained roberta-base tokenizer
 
 def load_data(file_path):
     sentences1 = []
@@ -23,13 +21,11 @@ def load_data(file_path):
             sentences2.append(tokens[11])
             event_triggers1.append(int(tokens[1]))
             event_triggers2.append(int(tokens[12]))
-            labels.append(int(tokens[22])) #deal with the other info later
+            labels.append(int(tokens[22])) # recognizing info based on tab-separation, adding to lists
 
-    # print(train_sentences)
     tokenized = tokenizer(sentences1, sentences2, padding=True, truncation=True, return_tensors="pt")
 
-    # Convert to Hugging Face Dataset
-    dataset = Dataset.from_dict({
+    dataset = Dataset.from_dict({ # convert to Hugging Face Dataset
     "input_ids": tokenized["input_ids"],
     "attention_mask": tokenized["attention_mask"],
     "trigger_indices_1": torch.tensor(event_triggers1),
@@ -39,29 +35,30 @@ def load_data(file_path):
 
     return dataset
 
-train_dataset = load_data("data2/event_pairs.train")
-dev_dataset = load_data("data2/event_pairs.train")
-test_dataset = load_data("data2/event_pairs.train")
+train_dataset = load_data("data 2/event_pairs.train")
+dev_dataset = load_data("data 2/event_pairs.train")
+test_dataset = load_data("data 2/event_pairs.train")
 
-# Define number of labels (e.g., 2 for binary classification)
-model = RobertaForSequenceClassification.from_pretrained("roberta-base", num_labels=2)
+model = RobertaForSequenceClassification.from_pretrained("roberta-base", num_labels=2) # define number of labels (e.g., 2 for binary classification)
 
 lora_config = LoraConfig(
-    task_type=TaskType.SEQ_CLS,  # Change to TaskType.TOKEN_CLS for token classification
+    task_type=TaskType.SEQ_CLS,  
     r=8, 
     lora_alpha=16, 
     lora_dropout=0.1, 
-    target_modules=["query", "value"]
+    target_modules=["query", "value"] 
 )
+
+# configuring LORA to fine-tune only a small subset of parameters, drastically reducing memory usage and training time
 
 model = get_peft_model(model, lora_config)
 model.print_trainable_parameters()
 
 def compute_metrics(eval_pred):
     logits, labels = eval_pred
-    predictions = np.argmax(logits, axis=-1)  # Get predicted class indices
+    predictions = np.argmax(logits, axis=-1)  # get predicted class indices
     
-    # Compute accuracy, precision, recall, F1
+    # compute accuracy, precision, recall, F1
     accuracy = accuracy_score(labels, predictions)
     precision, recall, f1, _ = precision_recall_fscore_support(labels, predictions, average="binary")
 
@@ -72,12 +69,9 @@ def compute_metrics(eval_pred):
         "f1": f1
     }
 
-#initial lr = 5e-5
-
-
 training_args = TrainingArguments(
-    output_dir="./roberta_finetuned",  # Where to save model
-    evaluation_strategy="epoch",  # Evaluate at the end of each epoch
+    output_dir="./roberta_finetuned",  # where to save model
+    evaluation_strategy="epoch",  # evaluate at the end of each epoch
     save_strategy="epoch",
     per_device_train_batch_size=8,
     per_device_eval_batch_size=8,
@@ -86,18 +80,18 @@ training_args = TrainingArguments(
     weight_decay=0.01,
     logging_dir="./logs",
     logging_steps=10,
-    fp16 = True
+    fp16 = False
 )
 
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=train_dataset,  # Your training data
+    train_dataset=train_dataset,
     eval_dataset=test_dataset,
     compute_metrics=compute_metrics
 )
 
-# trainer.train()
+trainer.train()
 
 model.save_pretrained("./roberta_finetuned_lora")
 
